@@ -39,6 +39,9 @@ import traceback
 
 import RPi_I2C_driver
 
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
 ############ USER VARIABLES
 DEBUG    = 0       # Debug 0 off, 1 on
 LOG      = 1       # Log Launch data for past 15 min
