@@ -1,6 +1,6 @@
 # Display message during bootup
-@reboot sudo python /home/pi/RocketLaunchPi/startup.py >/dev/null 2>&1
+@reboot sudo python3 /home/pi/RocketLaunchPi/startup.py >/dev/null 2>&1
 
 # RocketLaunchPi
-5,20,35,50 08-22 * * * sudo python /home/pi/RocketLaunchPi/rocketlaunchpi.py >/home/pi/RocketLaunchPi/rocket.log 2>&1
+5,20,35,50 08-22 * * * sudo python3 /home/pi/RocketLaunchPi/rocketlaunchpi.py >/home/pi/RocketLaunchPi/rocket.log 2>&1
 
