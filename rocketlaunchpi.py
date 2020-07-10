@@ -19,6 +19,7 @@
 #
 # Version 1.0 2016.07.26 - Initial
 #         2.0 2019.06.17 - Converted to python3
+#         2.1 2020.07.10 - Change to send user-agent field
 #
 # License: GPLv3, see: www.gnu.org/licenses/gpl-3.0.html
 #
@@ -120,6 +121,7 @@ if __name__ == '__main__':
     
     # Find the next Launch
     URL = "https://launchlibrary.net/1.2/launch?next=1&mode=verbose"
+    hdr = {'Accept': 'text/html,application/xhtml+xml,*/*',"user-agent":"urllib2/2.00"}
 
     if LOG:
       print(URL)
@@ -128,7 +130,8 @@ if __name__ == '__main__':
     try:
         tmout = 15
         #socket.setdefaulttimeout(tmout)
-        response = urllib.request.urlopen(URL, timeout=tmout)
+        req = urllib2.Request(URL, headers=hdr)
+        response = urllib2.urlopen(req, timeout=tmout)
         body = response.read()
         data = json.loads(body.decode('utf-8'))
 
