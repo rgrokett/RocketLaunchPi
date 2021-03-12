@@ -14,12 +14,11 @@
 # Usage via cron: 
 # Avoids running at same time as earthquakepi and during night
 # $ crontab -e
-# 5,20,35,50 08-22 * * * sudo python3 /home/pi/RocketLaunchPi/rocketlaunchpi.py >/home/pi/RocketLaunchPi/rocket.log 2>&1
+# 5,20,35,50 08-22 * * * sudo python /home/pi/RocketLaunchPi/rocketlaunchpi.py >/home/pi/RocketLaunchPi/rocket.log 2>&1
 #
 #
 # Version 1.0 2016.07.26 - Initial
-#         2.0 2019.06.17 - Converted to python3
-#         2.1 2020.07.10 - Change to send user-agent field
+# Version 2.0 2021.03.11 - Update to new API URL
 #
 # License: GPLv3, see: www.gnu.org/licenses/gpl-3.0.html
 #
@@ -27,7 +26,7 @@
 
 import subprocess
 import os
-import urllib.request, urllib.error, urllib.parse
+import urllib2
 import json
 from datetime import datetime
 from datetime import timedelta
@@ -38,11 +37,14 @@ import socket
 import sys
 import re
 import traceback
+
 import RPi_I2C_driver
 
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 ############ USER VARIABLES
-DEBUG    = 0       # Debug 0 off, 1 on
+DEBUG    = 1       # Debug 0 off, 1 on
 LOG      = 1       # Log Launch data for past 15 min
 AUDIO    = 1       # Sound 0 off, 1 on
 VOLUME   = 80      # Sound volume 0-100% (if supported)
@@ -62,13 +64,13 @@ def blink(lcd): # Blink the LCD
         time.sleep(0.3)
         lcd.backlight(0)
         time.sleep(0.3)
-        lcd.backlight(1)
+    lcd.backlight(1)
 
 def volume(val): # Set Volume for Launch
     vol = int(val)
     cmd = "sudo amixer -q sset PCM,0 "+str(vol)+"%"
     if DEBUG:
-      print(cmd)
+	print(cmd)
     os.system(cmd)
     return
 
@@ -76,7 +78,7 @@ def sound(val): # Play a sound
     time.sleep(1)
     cmd = "/usr/bin/aplay -q "+str(val)
     if DEBUG:
-      print(cmd)
+	print(cmd)
     os.system(cmd)
     #proc = subprocess.call(['/usr/bin/aplay', WAV], stderr=subprocess.PIPE)
     return
@@ -87,11 +89,11 @@ def exit():
     Exit handler, which clears all custom chars and shuts down the display.
     """
     try:
-        if not DISPLAY:
+	if not DISPLAY:
             lcd = RPi_I2C_driver.lcd()
             lcd.backlight(0)
         if DEBUG:
-            print("exit()")
+            print "exit()"
     except:
         # avoids ugly KeyboardInterrupt trace on console...
         pass
@@ -112,19 +114,24 @@ if __name__ == '__main__':
         lcd.lcd_display_string('RocketLaunchPi',1)
         lcd.lcd_display_string('DEBUG ON',2)
         lcd.lcd_display_string('All Times are LOCAL',3)
-        print("DEBUG MODE")
-        print("STARTUP")
-        if AUDIO:
-          volume(VOLUME)
-          sound(WAV)
+	print "DEBUG MODE"
+        print "STARTUP"
+	if AUDIO:
+	    volume(VOLUME)
+	    sound(WAV)
         PAUSE = 10
     
     # Find the next Launch
-    URL = "https://launchlibrary.net/1.2/launch?next=1&mode=verbose"
+    #URL = "https://launchlibrary.net/1.4/launch?next=1&mode=verbose"
+    if DEBUG:
+        URL = "https://lldev.thespacedevs.com/2.0.0/launch/upcoming/?limit=1&mode=verbose&format=json"
+    else:
+        URL = "https://ll.thespacedevs.com/2.0.0/launch/upcoming/?limit=1&mode=verbose&format=json"
+
     hdr = {'Accept': 'text/html,application/xhtml+xml,*/*',"user-agent":"urllib2/2.00"}
 
     if LOG:
-      print(URL)
+	print URL
 
     # Call LaunchLibrary API. timeout in seconds 
     try:
@@ -132,89 +139,89 @@ if __name__ == '__main__':
         #socket.setdefaulttimeout(tmout)
         req = urllib2.Request(URL, headers=hdr)
         response = urllib2.urlopen(req, timeout=tmout)
-        body = response.read()
-        data = json.loads(body.decode('utf-8'))
-
+        data = json.load(response)   
         if DEBUG:
-            print("--------------")
-            print(data)
-            print("--------------")
-    except:
-        print("timeout waiting for LaunchLibrary API response")
+            print "--------------"
+            print data
+            print "--------------"
+    except Exception as e:
+            print "Unexpected error:", sys.exc_info()[0]
+            if DEBUG:
+                print(traceback.format_exc())
+	    print "timeout waiting for LaunchLibrary API response"
     
     # Status of launch
     status_arr = [ 'n/a', 'GREEN', 'RED', 'SUCCESS', 'FAILED']
 
     cnt = 0
     # DESIGNED FOR MULTIPLE LAUNCHES, BUT ONLY FIRST IS BEING GATHERED
-    for launch in data['launches']:
-      if LOG:
-            print(launch['id'])
-            print(launch['name'])
-            print(launch['isonet'])
-            print(launch['location']['pads'][0]['name'])
-            print(launch['location']['name'])
-            print(launch['rocket']['name'])
-            print("--------------")
+    for launch in data['results']:
+        if LOG:
+            print launch['id']
+            print launch['name']
+            print launch['net']
+            print launch['pad']['location']['name']
+            print launch['rocket']['configuration']['name']
+            print launch['status']['name']
+            print "--------------"
 
-      try:
-        id    = launch['id']
-        title = launch['name']
-        isotm = launch['isonet']
-        loc   = launch['location']['name']
-        rocket= launch['rocket']['name']
-        status= launch['status']
+        try:
+            id    = launch['id']
+            title = launch['name']
+            isotm = launch['net']
+            loc   = launch['pad']['location']['name']
+            rocket= launch['rocket']['configuration']['name']
+            status= launch['status']['id']
 
-        # Format to fit screen
-        loc = loc[0:24]
-        rocket = rocket[0:24]
-        status = "STATUS: "+status_arr[int(status)]
+	    # Format to fit screen
+	    loc = loc[:24]
+	    rocket = rocket[:24]
+	    status = "STATUS: "+status_arr[int(status)]
     
-        # GET CURRENT UTC TIME
-        utcnow = datetime.utcnow()
-        utcnow_15 = utcnow - timedelta(minutes = 15)
-    
-        # CONVERT LAUNCH TIME TO UTC AND LOCALTIME
-        # Note that actual launch time is approximate! 
-        unixsec = calendar.timegm(time.strptime(isotm.replace('Z', 'UTC'), '%Y%m%dT%H%M%S%Z'))
-        utctime = datetime.utcfromtimestamp(unixsec)
-        loctime = datetime.fromtimestamp(unixsec).strftime('%Y-%m-%d %H:%M:%S')
-    
-        if DEBUG:
-          print("Next Launch at:")
-          print("utctime:"+str(utctime))
-          print("loctime:"+str(loctime))
-          print("status:"+str(status))
-    
-        # LCD 20 x 4 DISPLAY
-        lcd.lcd_clear()
-        blink(lcd)
-        lcd.lcd_display_string(rocket,1)
-        lcd.lcd_display_string(loc,2)
-        lcd.lcd_display_string(loctime,3)
-        lcd.lcd_display_string(status,4)
-         
-        # Sound Effect
-        # Note that the launch sound is only approximate to actual 
-        # launch (+-15 minutes or more if last minute hold/scrub)
-        if AUDIO:
-            if (utcnow_15 <= utctime <= utcnow):
-                volume(VOLUME)
-                sound(WAV)
-    
-        cnt = cnt + 1
-        time.sleep(PAUSE)
+	    # GET CURRENT UTC TIME
+    	    utcnow = datetime.utcnow()
+    	    utcnow_15 = utcnow - timedelta(minutes = 15)
 
-      except NameError:
-        print("No launches scheduled.")
-        if DEBUG:
-            print((traceback.format_exc()))
-            print((traceback.format_exc())) # TEMPY
+	    # CONVERT LAUNCH TIME TO UTC AND LOCALTIME
+	    # Note that actual launch time is approximate! 
+	    unixsec = calendar.timegm(time.strptime(isotm.replace('Z', 'GMT'), '%Y-%m-%dT%H:%M:%S%Z'))
+            utctime = datetime.utcfromtimestamp(unixsec)
+            loctime = datetime.fromtimestamp(unixsec).strftime('%Y-%m-%d %H:%M:%S')
 
-      except Exception as e:
-        print("Unexpected error:", sys.exc_info()[0])
-        if DEBUG:
-            print((traceback.format_exc()))
+	    if DEBUG:
+		print "utctime:"+str(utctime)
+		print "loctime:"+str(loctime)
+		print "status:"+str(status)
+    
+	    # LCD 20 x 4 DISPLAY
+            lcd.lcd_clear()
+	    blink(lcd)
+	    lcd.lcd_display_string(rocket,1)
+	    lcd.lcd_display_string(loc,2)
+	    lcd.lcd_display_string(loctime,3)
+	    lcd.lcd_display_string(status,4)
+    	
+	    # Sound Effect
+	    # Note that the launch sound is only approximate to actual 
+	    # launch (+-15 minutes or more if last minute hold/scrub)
+	    if AUDIO:
+		if utcnow_15 <= utctime <= utcnow:
+	            volume(VOLUME)
+                    sound(WAV)
+
+	    cnt = cnt + 1
+	    time.sleep(PAUSE)
+
+        except NameError:
+            print "No launches scheduled."
+            if DEBUG:
+                print(traceback.format_exc())
+            print(traceback.format_exc()) # TEMPY
+
+        except Exception as e:
+            print "Unexpected error:", sys.exc_info()[0]
+            if DEBUG:
+                print(traceback.format_exc())
 
     # END FOR LOOP
 
@@ -223,10 +230,10 @@ if __name__ == '__main__':
         lcd.lcd_clear()
         lcd.lcd_display_string('RocketLaunchPi',1)
         lcd.lcd_display_string('No Launches scheduled!',2)
-        time.sleep(PAUSE)
-        if LOG:
-          print("No launches scheduled")
-  
+	time.sleep(PAUSE)
+	if LOG:
+	    print "No launches scheduled"
+	
     if DEBUG:
-        print("END OF RUN")
+        print "END OF RUN"
 
