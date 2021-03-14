@@ -19,7 +19,7 @@
 #
 # Version 1.0 2016.07.26 - Initial
 #
-# NOTE: Uses python2.7 
+# NOTE: Uses python2.7
 #
 # License: GPLv3, see: www.gnu.org/licenses/gpl-3.0.html
 #
@@ -45,7 +45,7 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 ############ USER VARIABLES
-DEBUG    = 1       # Debug 0 off, 1 on
+DEBUG    = 0       # Debug 0 off, 1 on
 LOG      = 1       # Log Launch data for past 15 min
 AUDIO    = 1       # Sound 0 off, 1 on
 VOLUME   = 80      # Sound volume 0-100% (if supported)
@@ -158,7 +158,7 @@ if __name__ == '__main__':
     # DESIGNED FOR MULTIPLE LAUNCHES, BUT ONLY FIRST IS BEING GATHERED
     for launch in data['results']:
         if LOG:
-            print "NEXT LAUNCH:"
+            print "LAUNCH:"
             print launch['id']
             print launch['name']
             print launch['net']
@@ -191,11 +191,11 @@ if __name__ == '__main__':
             loctime = datetime.fromtimestamp(unixsec).strftime('%Y-%m-%d %H:%M:%S')
             # Skip if already past
             if (unixsec < time.time()):
-	        if DEBUG:
+	        if LOG:
                     print "skipping..."
                 continue
 
-	    if DEBUG:
+	    if LOG:
 		print "utctime:"+str(utctime)
 		print "loctime:"+str(loctime)
 		print "status:"+str(status)
