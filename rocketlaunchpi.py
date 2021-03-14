@@ -18,7 +18,8 @@
 #
 #
 # Version 1.0 2016.07.26 - Initial
-# Version 2.0 2021.03.11 - Update to new API URL
+#
+# NOTE: Uses python2.7 
 #
 # License: GPLv3, see: www.gnu.org/licenses/gpl-3.0.html
 #
@@ -124,9 +125,9 @@ if __name__ == '__main__':
     # Find the next Launch
     #URL = "https://launchlibrary.net/1.4/launch?next=1&mode=verbose"
     if DEBUG:
-        URL = "https://lldev.thespacedevs.com/2.0.0/launch/upcoming/?limit=1&mode=verbose&format=json"
+        URL = "https://lldev.thespacedevs.com/2.0.0/launch/upcoming/?limit=3&mode=verbose&format=json"
     else:
-        URL = "https://ll.thespacedevs.com/2.0.0/launch/upcoming/?limit=1&mode=verbose&format=json"
+        URL = "https://ll.thespacedevs.com/2.0.0/launch/upcoming/?limit=3&mode=verbose&format=json"
 
     hdr = {'Accept': 'text/html,application/xhtml+xml,*/*',"user-agent":"urllib2/2.00"}
 
@@ -157,6 +158,7 @@ if __name__ == '__main__':
     # DESIGNED FOR MULTIPLE LAUNCHES, BUT ONLY FIRST IS BEING GATHERED
     for launch in data['results']:
         if LOG:
+            print "NEXT LAUNCH:"
             print launch['id']
             print launch['name']
             print launch['net']
@@ -187,6 +189,11 @@ if __name__ == '__main__':
 	    unixsec = calendar.timegm(time.strptime(isotm.replace('Z', 'GMT'), '%Y-%m-%dT%H:%M:%S%Z'))
             utctime = datetime.utcfromtimestamp(unixsec)
             loctime = datetime.fromtimestamp(unixsec).strftime('%Y-%m-%d %H:%M:%S')
+            # Skip if already past
+            if (unixsec < time.time()):
+	        if DEBUG:
+                    print "skipping..."
+                continue
 
 	    if DEBUG:
 		print "utctime:"+str(utctime)
